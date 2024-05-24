@@ -3,18 +3,24 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
 
 func main() {
-	fmt.Fprint(os.Stdout, "$ ")
-
 	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		panic(err)
+
+	for {
+		fmt.Fprint(os.Stdout, "$ ")
+		input, err := reader.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+		input = strings.TrimRight(input, "\n")
+		fmt.Printf("%s: command not found\n", input)
 	}
-	input = strings.TrimRight(input, "\n")
-	fmt.Printf("%s: command not found\n", input)
 }
