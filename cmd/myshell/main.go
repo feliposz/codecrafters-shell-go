@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
+
+	builtins := []string{"exit", "echo", "type"}
 
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
@@ -32,6 +35,12 @@ func main() {
 			os.Exit(exitCode)
 		case "echo":
 			fmt.Printf("%s\n", strings.Join(cmd[1:], " "))
+		case "type":
+			if slices.Contains(builtins, cmd[1]) {
+				fmt.Printf("%s is a shell builtin\n", cmd[1])
+			} else {
+				fmt.Printf("%s not found\n", cmd[1])
+			}
 		default:
 			fmt.Printf("%s: command not found\n", cmd[0])
 		}
