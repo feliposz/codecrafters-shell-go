@@ -39,10 +39,29 @@ func main() {
 			if slices.Contains(builtins, cmd[1]) {
 				fmt.Printf("%s is a shell builtin\n", cmd[1])
 			} else {
-				fmt.Printf("%s not found\n", cmd[1])
+				fullPath := searchPath(cmd[1])
+				if fullPath == "" {
+					fmt.Printf("%s not found\n", cmd[1])
+				} else {
+					fmt.Printf("%s is %s\n", cmd[1], fullPath)
+				}
 			}
 		default:
 			fmt.Printf("%s: command not found\n", cmd[0])
 		}
 	}
+}
+
+func searchPath(name string) string {
+	pathEnv := os.Getenv("PATH")
+	pathDirs := strings.Split(pathEnv, ":")
+	for _, dir := range pathDirs {
+		dir = strings.TrimSuffix(dir, "/")
+		fullPath := fmt.Sprintf("%s/%s", dir, name)
+		info, err := os.Stat(fullPath)
+		if err == nil && !info.IsDir() {
+			return fullPath
+		}
+	}
+	return ""
 }
