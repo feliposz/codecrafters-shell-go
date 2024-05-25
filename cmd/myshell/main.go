@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
@@ -47,7 +48,18 @@ func main() {
 				}
 			}
 		default:
-			fmt.Printf("%s: command not found\n", cmd[0])
+			fullPath := searchPath(cmd[0])
+			fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
+			if fullPath == "" {
+				info, err := os.Stat(cmd[0])
+				if err != nil || info.IsDir() {
+					fmt.Printf("%s: command not found\n", cmd[0])
+				} else {
+					executeCmd(cmd[0], cmd[1:])
+				}
+			} else {
+				executeCmd(fullPath, cmd[1:])
+			}
 		}
 	}
 }
@@ -55,6 +67,7 @@ func main() {
 func searchPath(name string) string {
 	pathEnv := os.Getenv("PATH")
 	pathDirs := strings.Split(pathEnv, ":")
+	fmt.Fprintf(os.Stderr, "pathDirs = %v\n", pathDirs)
 	for _, dir := range pathDirs {
 		dir = strings.TrimSuffix(dir, "/")
 		fullPath := fmt.Sprintf("%s/%s", dir, name)
@@ -64,4 +77,16 @@ func searchPath(name string) string {
 		}
 	}
 	return ""
+}
+
+func executeCmd(cmdPath string, args []string) {
+	cmd := exec.Command(cmdPath, args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	fmt.Println(cmd)
+	err := cmd.Run()
+	if err != nil {
+		panic(err)
+	}
 }
