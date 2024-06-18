@@ -14,7 +14,7 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	builtins := []string{"exit", "echo", "type"}
+	builtins := []string{"exit", "echo", "type", "pwd"}
 
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
@@ -36,20 +36,26 @@ func main() {
 			os.Exit(exitCode)
 		case "echo":
 			fmt.Printf("%s\n", strings.Join(cmd[1:], " "))
+		case "pwd":
+			wd, err := os.Getwd()
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("%s\n", wd)
 		case "type":
 			if slices.Contains(builtins, cmd[1]) {
 				fmt.Printf("%s is a shell builtin\n", cmd[1])
 			} else {
 				fullPath := searchPath(cmd[1])
 				if fullPath == "" {
-					fmt.Printf("%s not found\n", cmd[1])
+					fmt.Printf("%s: not found\n", cmd[1])
 				} else {
 					fmt.Printf("%s is %s\n", cmd[1], fullPath)
 				}
 			}
 		default:
 			fullPath := searchPath(cmd[0])
-			fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
+			// fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
 			if fullPath == "" {
 				info, err := os.Stat(cmd[0])
 				if err != nil || info.IsDir() {
@@ -67,7 +73,7 @@ func main() {
 func searchPath(name string) string {
 	pathEnv := os.Getenv("PATH")
 	pathDirs := strings.Split(pathEnv, ":")
-	fmt.Fprintf(os.Stderr, "pathDirs = %v\n", pathDirs)
+	// fmt.Fprintf(os.Stderr, "pathDirs = %v\n", pathDirs)
 	for _, dir := range pathDirs {
 		dir = strings.TrimSuffix(dir, "/")
 		fullPath := fmt.Sprintf("%s/%s", dir, name)
@@ -84,7 +90,7 @@ func executeCmd(cmdPath string, args []string) {
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
-	fmt.Println(cmd)
+	// fmt.Println(cmd)
 	err := cmd.Run()
 	if err != nil {
 		panic(err)
