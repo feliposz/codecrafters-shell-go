@@ -14,7 +14,7 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	builtins := []string{"exit", "echo", "type", "pwd"}
+	builtins := []string{"exit", "echo", "type", "pwd", "cd"}
 
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
@@ -42,6 +42,15 @@ func main() {
 				panic(err)
 			}
 			fmt.Printf("%s\n", wd)
+		case "cd":
+			err := os.Chdir(cmd[1])
+			if err != nil {
+				if _, isPathError := err.(*os.PathError); isPathError {
+					fmt.Printf("cd: %s: No such file or directory\n", cmd[1])
+				} else {
+					panic(err)
+				}
+			}
 		case "type":
 			if slices.Contains(builtins, cmd[1]) {
 				fmt.Printf("%s is a shell builtin\n", cmd[1])
