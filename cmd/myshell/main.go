@@ -43,10 +43,17 @@ func main() {
 			}
 			fmt.Printf("%s\n", wd)
 		case "cd":
-			err := os.Chdir(cmd[1])
+			dir := cmd[1]
+			if dir == "~" {
+				homeEnv := os.Getenv("HOME")
+				if homeEnv != "" {
+					dir = homeEnv
+				}
+			}
+			err := os.Chdir(dir)
 			if err != nil {
 				if _, isPathError := err.(*os.PathError); isPathError {
-					fmt.Printf("cd: %s: No such file or directory\n", cmd[1])
+					fmt.Printf("cd: %s: No such file or directory\n", dir)
 				} else {
 					panic(err)
 				}
