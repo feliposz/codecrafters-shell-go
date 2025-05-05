@@ -77,10 +77,10 @@ func main() {
 				if err != nil || info.IsDir() {
 					fmt.Printf("%s: command not found\n", cmd[0])
 				} else {
-					executeCmd(cmd[0], cmd[1:])
+					executeCmd(cmd[0], cmd)
 				}
 			} else {
-				executeCmd(fullPath, cmd[1:])
+				executeCmd(fullPath, cmd)
 			}
 		}
 	}
@@ -102,7 +102,9 @@ func searchPath(name string) string {
 }
 
 func executeCmd(cmdPath string, args []string) {
-	cmd := exec.Command(cmdPath, args...)
+	cmd := exec.Cmd{}
+	cmd.Path = cmdPath
+	cmd.Args = args
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
