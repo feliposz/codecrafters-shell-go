@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -10,21 +9,43 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/chzyer/readline"
+)
+
+var completer = readline.NewPrefixCompleter(
+	readline.PcItem("echo"),
+	readline.PcItem("exit"),
 )
 
 func main() {
-	reader := bufio.NewReader(os.Stdin)
+	reader, err := readline.NewEx(&readline.Config{
+		Prompt:          "$ ",
+		AutoComplete:    completer,
+		InterruptPrompt: "^C",
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer reader.Close()
+	reader.CaptureExitSignal()
 
 	for {
-		fmt.Fprint(os.Stdout, "$ ")
-		input, err := reader.ReadString('\n')
+		input, err := reader.Readline()
+		if err == readline.ErrInterrupt {
+			if len(input) == 0 {
+				break
+			} else {
+				continue
+			}
+		}
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			panic(err)
 		}
-		input = strings.TrimRight(input, "\n")
+		input = strings.TrimSpace(input)
 
 		args := splitArgs(input)
 		firstRedirectIndex := len(args)
