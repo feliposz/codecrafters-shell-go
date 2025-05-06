@@ -123,7 +123,7 @@ func (c *completerWithBells) Do(line []rune, pos int) ([][]rune, int) {
 		fmt.Fprintf(os.Stderr, "\a")
 	}
 	if len(items) > 1 {
-		items = unique(items)
+		items = uniqueAndSorted(items)
 	}
 	// returned many matches
 	if len(items) > 1 {
@@ -148,19 +148,18 @@ func (c *completerWithBells) Do(line []rune, pos int) ([][]rune, int) {
 	return items, offset
 }
 
-func unique(items [][]rune) [][]rune {
-	included := make(map[string]bool)
-	for _, item := range items {
-		strItem := string(item)
-		if !included[strItem] {
-			included[strItem] = true
+func uniqueAndSorted(items [][]rune) [][]rune {
+	if len(items) < 2 {
+		return items
+	}
+	slices.SortFunc(items, slices.Compare)
+	result := make([][]rune, 0, len(items))
+	result = append(result, items[0])
+	for i := 1; i < len(items); i++ {
+		if slices.Compare(items[i], items[i-1]) != 0 {
+			result = append(result, items[i])
 		}
 	}
-	result := make([][]rune, 0, len(included))
-	for strItem, _ := range included {
-		result = append(result, []rune(strItem))
-	}
-	slices.SortFunc(result, slices.Compare)
 	return result
 }
 
@@ -312,26 +311,24 @@ func splitArgs(s string) []string {
 }
 
 // cache the result of previous search
-var previousPrefix = ""
+var previousPathEnv = ""
 var previousSuggestions = []string{}
 
 func listPathCompleter(prefix string) []string {
-	if prefix == previousPrefix {
+	pathEnv := os.Getenv("PATH")
+	if prefix == previousPathEnv {
 		return previousSuggestions
 	}
-	pathEnv := os.Getenv("PATH")
 	pathDirs := strings.Split(pathEnv, ":")
 	suggestions := make([]string, 0)
 	for _, dir := range pathDirs {
 		files, _ := os.ReadDir(dir)
 		for _, file := range files {
 			name := file.Name()
-			if strings.HasPrefix(name, prefix) {
-				suggestions = append(suggestions, name)
-			}
+			suggestions = append(suggestions, name)
 		}
 	}
-	previousPrefix = prefix
+	previousPathEnv = pathEnv
 	previousSuggestions = suggestions
 	return suggestions
 }
