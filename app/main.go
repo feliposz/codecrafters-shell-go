@@ -25,22 +25,40 @@ func main() {
 			panic(err)
 		}
 		input = strings.TrimRight(input, "\n")
+
 		args := splitArgs(input)
+		firstRedirectIndex := len(args)
+
+		stdinFile, stdoutFile, stderrFile := os.Stdin, os.Stdout, os.Stdout
+
 		stdoutRedirectIndex := slices.Index(args, "1>")
 		if stdoutRedirectIndex == -1 {
 			stdoutRedirectIndex = slices.Index(args, ">")
 		}
-		stdinFile, stdoutFile, stderrFile := os.Stdin, os.Stdout, os.Stderr
 		if stdoutRedirectIndex != -1 {
 			stdoutFilePath := args[stdoutRedirectIndex+1]
-			args = args[:stdoutRedirectIndex]
+			firstRedirectIndex = min(firstRedirectIndex, stdoutRedirectIndex)
 			if stdoutFile, err = os.Create(stdoutFilePath); err != nil {
 				panic(err)
 			}
 		}
+
+		stderrRedirectIndex := slices.Index(args, "2>")
+		if stderrRedirectIndex != -1 {
+			stderrFilePath := args[stderrRedirectIndex+1]
+			firstRedirectIndex = min(firstRedirectIndex, stderrRedirectIndex)
+			if stderrFile, err = os.Create(stderrFilePath); err != nil {
+				panic(err)
+			}
+		}
+
+		args = args[:firstRedirectIndex]
 		handleCommand(args, stdinFile, stdoutFile, stderrFile)
 		if stdoutFile != os.Stdout {
 			stdoutFile.Close()
+		}
+		if stderrFile != os.Stdout {
+			stderrFile.Close()
 		}
 	}
 }
