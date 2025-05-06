@@ -43,6 +43,18 @@ func main() {
 			}
 		}
 
+		stdoutAppendIndex := slices.Index(args, "1>>")
+		if stdoutAppendIndex == -1 {
+			stdoutAppendIndex = slices.Index(args, ">>")
+		}
+		if stdoutAppendIndex != -1 {
+			stdoutFilePath := args[stdoutAppendIndex+1]
+			firstRedirectIndex = min(firstRedirectIndex, stdoutAppendIndex)
+			if stdoutFile, err = os.OpenFile(stdoutFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+				panic(err)
+			}
+		}
+
 		stderrRedirectIndex := slices.Index(args, "2>")
 		if stderrRedirectIndex != -1 {
 			stderrFilePath := args[stderrRedirectIndex+1]
