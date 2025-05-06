@@ -219,7 +219,7 @@ func uniqueAndSorted(items [][]rune) [][]rune {
 	return result
 }
 
-func handleCommand(args []string, stdin io.Reader, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
+func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
 
 	builtins := []string{"exit", "echo", "type", "pwd", "cd"}
 
@@ -280,11 +280,10 @@ func handleCommand(args []string, stdin io.Reader, stdout, stderr io.WriteCloser
 		}
 	}
 
-	if stdout != os.Stdout && stdout != os.Stderr {
-		stdout.Close()
-	}
-	if stderr != os.Stdout && stderr != os.Stderr {
-		stderr.Close()
+	for _, file := range []io.Closer{stdin, stdout, stderr} {
+		if file != os.Stdin && file != os.Stdout && file != os.Stderr {
+			file.Close()
+		}
 	}
 	if wg != nil {
 		wg.Done()
