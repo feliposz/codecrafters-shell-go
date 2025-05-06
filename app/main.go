@@ -99,11 +99,8 @@ func SplitArgs(s string) []string {
 	backslash := false
 
 	for _, rune := range s {
-		if backslash {
-			backslash = false
-			current.WriteRune(rune)
-		} else if insideDoubleQuote {
-			if rune == '"' {
+		if insideDoubleQuote {
+			if !backslash && rune == '"' {
 				if hadSpaceBetweenQuotes {
 					args = append(args, current.String())
 				} else {
@@ -113,6 +110,18 @@ func SplitArgs(s string) []string {
 				current.Reset()
 				insideDoubleQuote = false
 				hadSpaceBetweenQuotes = false
+			} else if !backslash && rune == '\\' {
+				backslash = true
+			} else if backslash {
+				switch rune {
+				case '\\', '"', '$', '\n':
+					backslash = false
+					current.WriteRune(rune)
+				default:
+					backslash = false
+					current.WriteRune('\\')
+					current.WriteRune(rune)
+				}
 			} else {
 				current.WriteRune(rune)
 			}
@@ -130,6 +139,9 @@ func SplitArgs(s string) []string {
 			} else {
 				current.WriteRune(rune)
 			}
+		} else if backslash {
+			backslash = false
+			current.WriteRune(rune)
 		} else if rune == '\\' {
 			backslash = true
 		} else if rune == '\'' {
@@ -149,8 +161,12 @@ func SplitArgs(s string) []string {
 
 	// Last field might end at EOF.
 	if current.Len() > 0 {
-		args = append(args, current.String())
-		current.Reset()
+		if hadSpaceBetweenQuotes {
+			args = append(args, current.String())
+		} else {
+			// just concatenate to previous string
+			args[len(args)-1] += current.String()
+		}
 	}
 
 	return args
