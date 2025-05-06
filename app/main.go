@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/chzyer/readline"
@@ -54,19 +55,28 @@ func main() {
 
 		args := splitTokens(input)
 		segments := splitPipeline(args)
-		args = segments[0] // TODO: just checking if everything works as before
 
-		args, inFile, outFile, errFile, err := handleRedirections(args, os.Stdin, os.Stdout, os.Stdout)
-		if err != nil {
-			panic(err)
-		}
+		if len(segments) == 1 {
+			args = segments[0]
 
-		handleCommand(args, inFile, outFile, errFile)
-		if outFile != os.Stdout {
-			outFile.Close()
-		}
-		if errFile != os.Stdout {
-			errFile.Close()
+			args, inFile, outFile, errFile, err := handleRedirections(args, os.Stdin, os.Stdout, os.Stdout)
+			if err != nil {
+				panic(err)
+			}
+
+			handleCommand(args, inFile, outFile, errFile, nil)
+
+		} else if len(segments) == 2 {
+			inFile, outFile, errFile := os.Stdin, os.Stdout, os.Stdout
+			pipeIn, pipeOut := io.Pipe()
+			var wg sync.WaitGroup
+			// TODO: skipping redirections for now...
+			wg.Add(2)
+			go handleCommand(segments[0], inFile, pipeOut, errFile, &wg)
+			go handleCommand(segments[1], pipeIn, outFile, errFile, &wg)
+			wg.Wait()
+		} else {
+			panic("multi command pipelines not implemented")
 		}
 	}
 }
@@ -209,7 +219,7 @@ func uniqueAndSorted(items [][]rune) [][]rune {
 	return result
 }
 
-func handleCommand(args []string, stdin, stdout, stderr *os.File) {
+func handleCommand(args []string, stdin io.Reader, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
 
 	builtins := []string{"exit", "echo", "type", "pwd", "cd"}
 
@@ -268,6 +278,16 @@ func handleCommand(args []string, stdin, stdout, stderr *os.File) {
 		} else {
 			executeCmd(fullPath, args, stdin, stdout, stderr)
 		}
+	}
+
+	if stdout != os.Stdout && stdout != os.Stderr {
+		stdout.Close()
+	}
+	if stderr != os.Stdout && stderr != os.Stderr {
+		stderr.Close()
+	}
+	if wg != nil {
+		wg.Done()
 	}
 }
 
@@ -394,7 +414,7 @@ func searchPath(name string) string {
 	return ""
 }
 
-func executeCmd(cmdPath string, args []string, stdin, stdout, stderr *os.File) {
+func executeCmd(cmdPath string, args []string, stdin io.Reader, stdout, stderr io.Writer) {
 	cmd := exec.Cmd{}
 	cmd.Path = cmdPath
 	cmd.Args = args
