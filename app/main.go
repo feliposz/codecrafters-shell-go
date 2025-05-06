@@ -26,7 +26,22 @@ func main() {
 		}
 		input = strings.TrimRight(input, "\n")
 		args := splitArgs(input)
-		handleCommand(args, os.Stdin, os.Stdout, os.Stderr)
+		stdoutRedirectIndex := slices.Index(args, "1>")
+		if stdoutRedirectIndex == -1 {
+			stdoutRedirectIndex = slices.Index(args, ">")
+		}
+		stdinFile, stdoutFile, stderrFile := os.Stdin, os.Stdout, os.Stderr
+		if stdoutRedirectIndex != -1 {
+			stdoutFilePath := args[stdoutRedirectIndex+1]
+			args = args[:stdoutRedirectIndex]
+			if stdoutFile, err = os.Create(stdoutFilePath); err != nil {
+				panic(err)
+			}
+		}
+		handleCommand(args, stdinFile, stdoutFile, stderrFile)
+		if stdoutFile != os.Stdout {
+			stdoutFile.Close()
+		}
 	}
 }
 
@@ -200,8 +215,9 @@ func executeCmd(cmdPath string, args []string, stdin, stdout, stderr *os.File) {
 	cmd.Stdout = stdout
 	cmd.Stdin = stdin
 	// fmt.Println(cmd)
-	err := cmd.Run()
-	if err != nil {
-		panic(err)
-	}
+	cmd.Run()
+	// err := cmd.Run()
+	// if err != nil {
+	// 	panic(err)
+	// }
 }
