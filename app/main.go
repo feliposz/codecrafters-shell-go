@@ -52,62 +52,72 @@ func main() {
 			continue
 		}
 
-		args := splitArgs(input)
-		firstRedirectIndex := len(args)
+		args := splitTokens(input)
 
-		stdinFile, stdoutFile, stderrFile := os.Stdin, os.Stdout, os.Stdout
-
-		stdoutRedirectIndex := slices.Index(args, "1>")
-		if stdoutRedirectIndex == -1 {
-			stdoutRedirectIndex = slices.Index(args, ">")
-		}
-		if stdoutRedirectIndex != -1 {
-			stdoutFilePath := args[stdoutRedirectIndex+1]
-			firstRedirectIndex = min(firstRedirectIndex, stdoutRedirectIndex)
-			if stdoutFile, err = os.Create(stdoutFilePath); err != nil {
-				panic(err)
-			}
+		args, inFile, outFile, errFile, err := handleRedirections(args, os.Stdin, os.Stdout, os.Stdout)
+		if err != nil {
+			panic(err)
 		}
 
-		stdoutAppendIndex := slices.Index(args, "1>>")
-		if stdoutAppendIndex == -1 {
-			stdoutAppendIndex = slices.Index(args, ">>")
+		handleCommand(args, inFile, outFile, errFile)
+		if outFile != os.Stdout {
+			outFile.Close()
 		}
-		if stdoutAppendIndex != -1 {
-			stdoutFilePath := args[stdoutAppendIndex+1]
-			firstRedirectIndex = min(firstRedirectIndex, stdoutAppendIndex)
-			if stdoutFile, err = os.OpenFile(stdoutFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
-				panic(err)
-			}
-		}
-
-		stderrRedirectIndex := slices.Index(args, "2>")
-		if stderrRedirectIndex != -1 {
-			stderrFilePath := args[stderrRedirectIndex+1]
-			firstRedirectIndex = min(firstRedirectIndex, stderrRedirectIndex)
-			if stderrFile, err = os.Create(stderrFilePath); err != nil {
-				panic(err)
-			}
-		}
-
-		stderrAppendIndex := slices.Index(args, "2>>")
-		if stderrAppendIndex != -1 {
-			stderrFilePath := args[stderrAppendIndex+1]
-			firstRedirectIndex = min(firstRedirectIndex, stderrAppendIndex)
-			if stderrFile, err = os.OpenFile(stderrFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
-				panic(err)
-			}
-		}
-
-		args = args[:firstRedirectIndex]
-		handleCommand(args, stdinFile, stdoutFile, stderrFile)
-		if stdoutFile != os.Stdout {
-			stdoutFile.Close()
-		}
-		if stderrFile != os.Stdout {
-			stderrFile.Close()
+		if errFile != os.Stdout {
+			errFile.Close()
 		}
 	}
+}
+
+func handleRedirections(args []string, inFile, outFile, errFile *os.File) (resultArgs []string, stdinFile, stdoutFile, stderrFile *os.File, err error) {
+
+	firstRedirectIndex := len(args)
+	stdinFile, stdoutFile, stderrFile = inFile, outFile, errFile
+
+	stdoutRedirectIndex := slices.Index(args, "1>")
+	if stdoutRedirectIndex == -1 {
+		stdoutRedirectIndex = slices.Index(args, ">")
+	}
+	if stdoutRedirectIndex != -1 {
+		stdoutFilePath := args[stdoutRedirectIndex+1]
+		firstRedirectIndex = min(firstRedirectIndex, stdoutRedirectIndex)
+		if stdoutFile, err = os.Create(stdoutFilePath); err != nil {
+			return nil, nil, nil, nil, err
+		}
+	}
+
+	stdoutAppendIndex := slices.Index(args, "1>>")
+	if stdoutAppendIndex == -1 {
+		stdoutAppendIndex = slices.Index(args, ">>")
+	}
+	if stdoutAppendIndex != -1 {
+		stdoutFilePath := args[stdoutAppendIndex+1]
+		firstRedirectIndex = min(firstRedirectIndex, stdoutAppendIndex)
+		if stdoutFile, err = os.OpenFile(stdoutFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+			return nil, nil, nil, nil, err
+		}
+	}
+
+	stderrRedirectIndex := slices.Index(args, "2>")
+	if stderrRedirectIndex != -1 {
+		stderrFilePath := args[stderrRedirectIndex+1]
+		firstRedirectIndex = min(firstRedirectIndex, stderrRedirectIndex)
+		if stderrFile, err = os.Create(stderrFilePath); err != nil {
+			return nil, nil, nil, nil, err
+		}
+	}
+
+	stderrAppendIndex := slices.Index(args, "2>>")
+	if stderrAppendIndex != -1 {
+		stderrFilePath := args[stderrAppendIndex+1]
+		firstRedirectIndex = min(firstRedirectIndex, stderrAppendIndex)
+		if stderrFile, err = os.OpenFile(stderrFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+			return nil, nil, nil, nil, err
+		}
+	}
+
+	resultArgs = args[:firstRedirectIndex]
+	return
 }
 
 // wrap a completer and implement bell
@@ -242,7 +252,7 @@ func handleCommand(args []string, stdin, stdout, stderr *os.File) {
 }
 
 // based on strings.FieldsFunc (but less efficient)
-func splitArgs(s string) []string {
+func splitTokens(s string) []string {
 	args := make([]string, 0)
 
 	var current strings.Builder
