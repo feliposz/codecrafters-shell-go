@@ -91,57 +91,66 @@ func main() {
 func SplitArgs(s string) []string {
 	args := make([]string, 0)
 
-	start := -1
+	var current strings.Builder
+
 	insideSingleQuote := false
 	insideDoubleQuote := false
 	hadSpaceBetweenQuotes := true
-	for end, rune := range s {
-		if insideDoubleQuote {
+	backslash := false
+
+	for _, rune := range s {
+		if backslash {
+			backslash = false
+			current.WriteRune(rune)
+		} else if insideDoubleQuote {
 			if rune == '"' {
 				if hadSpaceBetweenQuotes {
-					args = append(args, s[start:end])
+					args = append(args, current.String())
 				} else {
 					// just concatenate to previous string
-					args[len(args)-1] += s[start:end]
+					args[len(args)-1] += current.String()
 				}
-				start = -1
+				current.Reset()
 				insideDoubleQuote = false
 				hadSpaceBetweenQuotes = false
+			} else {
+				current.WriteRune(rune)
 			}
 		} else if insideSingleQuote {
 			if rune == '\'' {
 				if hadSpaceBetweenQuotes {
-					args = append(args, s[start:end])
+					args = append(args, current.String())
 				} else {
 					// just concatenate to previous string
-					args[len(args)-1] += s[start:end]
+					args[len(args)-1] += current.String()
 				}
-				start = -1
+				current.Reset()
 				insideSingleQuote = false
 				hadSpaceBetweenQuotes = false
+			} else {
+				current.WriteRune(rune)
 			}
+		} else if rune == '\\' {
+			backslash = true
 		} else if rune == '\'' {
-			start = end + 1
 			insideSingleQuote = true
 		} else if rune == '"' {
-			start = end + 1
 			insideDoubleQuote = true
 		} else if unicode.IsSpace(rune) {
 			hadSpaceBetweenQuotes = true
-			if start >= 0 {
-				args = append(args, s[start:end])
-				start = -1
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
 			}
 		} else {
-			if start < 0 {
-				start = end
-			}
+			current.WriteRune(rune)
 		}
 	}
 
 	// Last field might end at EOF.
-	if start >= 0 {
-		args = append(args, s[start:])
+	if current.Len() > 0 {
+		args = append(args, current.String())
+		current.Reset()
 	}
 
 	return args
