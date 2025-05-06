@@ -53,6 +53,8 @@ func main() {
 		}
 
 		args := splitTokens(input)
+		segments := splitPipeline(args)
+		args = segments[0] // TODO: just checking if everything works as before
 
 		args, inFile, outFile, errFile, err := handleRedirections(args, os.Stdin, os.Stdout, os.Stdout)
 		if err != nil {
@@ -67,6 +69,24 @@ func main() {
 			errFile.Close()
 		}
 	}
+}
+
+func splitPipeline(args []string) [][]string {
+	if len(args) == 0 {
+		return nil
+	}
+	segments := make([][]string, 0)
+	for len(args) > 0 {
+		pipeIndex := slices.Index(args, "|")
+		if pipeIndex == -1 {
+			segments = append(segments, args)
+			break
+		} else {
+			segments = append(segments, args[:pipeIndex])
+			args = args[pipeIndex+1:]
+		}
+	}
+	return segments
 }
 
 func handleRedirections(args []string, inFile, outFile, errFile *os.File) (resultArgs []string, stdinFile, stdoutFile, stderrFile *os.File, err error) {
