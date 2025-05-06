@@ -127,6 +127,12 @@ func (c *completerWithBells) Do(line []rune, pos int) ([][]rune, int) {
 	}
 	// returned many matches
 	if len(items) > 1 {
+		commonPrefix := getCommonPrefix(items)
+		if len(commonPrefix) > 0 {
+			// if there is a common prefix, let readline complete it (default behavior)
+			return items, offset
+		}
+
 		// default handling of readline library is different, so we'll do it as codecrafters want
 		if c.tabPressCount == 0 {
 			fmt.Fprintf(os.Stderr, "\a")
@@ -146,6 +152,16 @@ func (c *completerWithBells) Do(line []rune, pos int) ([][]rune, int) {
 		return nil, 0
 	}
 	return items, offset
+}
+
+// assume entries are unique and sorted
+func getCommonPrefix(suggestions [][]rune) []rune {
+	first, last := suggestions[0], suggestions[len(suggestions)-1]
+	result := first[:0]
+	for i := 0; i < len(first) && i < len(last) && first[i] == last[i]; i++ {
+		result = first[:i+1]
+	}
+	return result
 }
 
 func uniqueAndSorted(items [][]rune) [][]rune {
