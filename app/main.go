@@ -58,25 +58,29 @@ func main() {
 
 		if len(segments) == 1 {
 			args = segments[0]
-
 			args, inFile, outFile, errFile, err := handleRedirections(args, os.Stdin, os.Stdout, os.Stdout)
 			if err != nil {
 				panic(err)
 			}
-
 			handleCommand(args, inFile, outFile, errFile, nil)
-
-		} else if len(segments) == 2 {
-			inFile, outFile, errFile := os.Stdin, os.Stdout, os.Stdout
-			pipeIn, pipeOut := io.Pipe()
-			var wg sync.WaitGroup
-			// TODO: skipping redirections for now...
-			wg.Add(2)
-			go handleCommand(segments[0], inFile, pipeOut, errFile, &wg)
-			go handleCommand(segments[1], pipeIn, outFile, errFile, &wg)
-			wg.Wait()
 		} else {
-			panic("multi command pipelines not implemented")
+			inFile, outFile, errFile := os.Stdin, os.Stdout, os.Stdout
+			var wg sync.WaitGroup
+			var input, previousInput io.ReadCloser
+			var output io.WriteCloser
+			previousInput = inFile
+			for i, segment := range segments {
+				wg.Add(1)
+				if i < len(segments)-1 {
+					input, output = io.Pipe()
+				} else {
+					output = outFile
+				}
+				// TODO: should handle redirections here
+				go handleCommand(segment, previousInput, output, errFile, &wg)
+				previousInput = input
+			}
+			wg.Wait()
 		}
 	}
 }
