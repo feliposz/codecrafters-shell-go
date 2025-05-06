@@ -22,7 +22,7 @@ func main() {
 
 	reader, err := readline.NewEx(&readline.Config{
 		Prompt:          "$ ",
-		AutoComplete:    &bellOnNoMatchCompleter{completer},
+		AutoComplete:    &completerWithBells{completer, 0},
 		InterruptPrompt: "^C",
 	})
 	if err != nil {
@@ -111,17 +111,57 @@ func main() {
 }
 
 // wrap a completer and implement bell
-type bellOnNoMatchCompleter struct {
-	inner readline.AutoCompleter
+type completerWithBells struct {
+	inner         readline.AutoCompleter
+	tabPressCount int
 }
 
-func (c *bellOnNoMatchCompleter) Do(line []rune, pos int) ([][]rune, int) {
+func (c *completerWithBells) Do(line []rune, pos int) ([][]rune, int) {
 	items, offset := c.inner.Do(line, pos)
 	// inner completer returned no matches, sound a bell
 	if len(items) == 0 {
 		fmt.Fprintf(os.Stderr, "\a")
 	}
+	if len(items) > 1 {
+		items = unique(items)
+	}
+	// returned many matches
+	if len(items) > 1 {
+		// default handling of readline library is different, so we'll do it as codecrafters want
+		if c.tabPressCount == 0 {
+			fmt.Fprintf(os.Stderr, "\a")
+			c.tabPressCount++
+		} else {
+			fmt.Println()
+			for i, item := range items {
+				if i > 0 {
+					fmt.Print(" ")
+				}
+				fmt.Print(string(line) + string(item))
+			}
+			c.tabPressCount = 0
+			fmt.Println()
+			fmt.Print("$ " + string(line))
+		}
+		return nil, 0
+	}
 	return items, offset
+}
+
+func unique(items [][]rune) [][]rune {
+	included := make(map[string]bool)
+	for _, item := range items {
+		strItem := string(item)
+		if !included[strItem] {
+			included[strItem] = true
+		}
+	}
+	result := make([][]rune, 0, len(included))
+	for strItem, _ := range included {
+		result = append(result, []rune(strItem))
+	}
+	slices.SortFunc(result, slices.Compare)
+	return result
 }
 
 func handleCommand(args []string, stdin, stdout, stderr *os.File) {
@@ -271,7 +311,14 @@ func splitArgs(s string) []string {
 	return args
 }
 
+// cache the result of previous search
+var previousPrefix = ""
+var previousSuggestions = []string{}
+
 func listPathCompleter(prefix string) []string {
+	if prefix == previousPrefix {
+		return previousSuggestions
+	}
 	pathEnv := os.Getenv("PATH")
 	pathDirs := strings.Split(pathEnv, ":")
 	suggestions := make([]string, 0)
@@ -284,6 +331,8 @@ func listPathCompleter(prefix string) []string {
 			}
 		}
 	}
+	previousPrefix = prefix
+	previousSuggestions = suggestions
 	return suggestions
 }
 
