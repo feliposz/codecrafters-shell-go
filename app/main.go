@@ -15,8 +15,6 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	builtins := []string{"exit", "echo", "type", "pwd", "cd"}
-
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
 		input, err := reader.ReadString('\n')
@@ -27,68 +25,75 @@ func main() {
 			panic(err)
 		}
 		input = strings.TrimRight(input, "\n")
-		cmd := SplitArgs(input)
-		switch cmd[0] {
-		case "exit":
-			var exitCode int
-			if len(cmd) > 1 {
-				exitCode, _ = strconv.Atoi(cmd[1])
+		args := splitArgs(input)
+		handleCommand(args, os.Stdin, os.Stdout, os.Stderr)
+	}
+}
+
+func handleCommand(args []string, stdin, stdout, stderr *os.File) {
+
+	builtins := []string{"exit", "echo", "type", "pwd", "cd"}
+
+	switch args[0] {
+	case "exit":
+		var exitCode int
+		if len(args) > 1 {
+			exitCode, _ = strconv.Atoi(args[1])
+		}
+		os.Exit(exitCode)
+	case "echo":
+		fmt.Fprintf(stdout, "%s\n", strings.Join(args[1:], " "))
+	case "pwd":
+		wd, err := os.Getwd()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprintf(stdout, "%s\n", wd)
+	case "cd":
+		dir := args[1]
+		if dir == "~" {
+			homeEnv := os.Getenv("HOME")
+			if homeEnv != "" {
+				dir = homeEnv
 			}
-			os.Exit(exitCode)
-		case "echo":
-			fmt.Printf("%s\n", strings.Join(cmd[1:], " "))
-		case "pwd":
-			wd, err := os.Getwd()
-			if err != nil {
+		}
+		err := os.Chdir(dir)
+		if err != nil {
+			if _, isPathError := err.(*os.PathError); isPathError {
+				fmt.Fprintf(stderr, "cd: %s: No such file or directory\n", dir)
+			} else {
 				panic(err)
 			}
-			fmt.Printf("%s\n", wd)
-		case "cd":
-			dir := cmd[1]
-			if dir == "~" {
-				homeEnv := os.Getenv("HOME")
-				if homeEnv != "" {
-					dir = homeEnv
-				}
-			}
-			err := os.Chdir(dir)
-			if err != nil {
-				if _, isPathError := err.(*os.PathError); isPathError {
-					fmt.Printf("cd: %s: No such file or directory\n", dir)
-				} else {
-					panic(err)
-				}
-			}
-		case "type":
-			if slices.Contains(builtins, cmd[1]) {
-				fmt.Printf("%s is a shell builtin\n", cmd[1])
-			} else {
-				fullPath := searchPath(cmd[1])
-				if fullPath == "" {
-					fmt.Printf("%s: not found\n", cmd[1])
-				} else {
-					fmt.Printf("%s is %s\n", cmd[1], fullPath)
-				}
-			}
-		default:
-			fullPath := searchPath(cmd[0])
-			// fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
+		}
+	case "type":
+		if slices.Contains(builtins, args[1]) {
+			fmt.Fprintf(stdout, "%s is a shell builtin\n", args[1])
+		} else {
+			fullPath := searchPath(args[1])
 			if fullPath == "" {
-				info, err := os.Stat(cmd[0])
-				if err != nil || info.IsDir() {
-					fmt.Printf("%s: command not found\n", cmd[0])
-				} else {
-					executeCmd(cmd[0], cmd)
-				}
+				fmt.Fprintf(stderr, "%s: not found\n", args[1])
 			} else {
-				executeCmd(fullPath, cmd)
+				fmt.Fprintf(stdout, "%s is %s\n", args[1], fullPath)
 			}
+		}
+	default:
+		fullPath := searchPath(args[0])
+		// fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
+		if fullPath == "" {
+			info, err := os.Stat(args[0])
+			if err != nil || info.IsDir() {
+				fmt.Fprintf(stderr, "%s: command not found\n", args[0])
+			} else {
+				executeCmd(args[0], args, stdin, stdout, stderr)
+			}
+		} else {
+			executeCmd(fullPath, args, stdin, stdout, stderr)
 		}
 	}
 }
 
 // based on strings.FieldsFunc (but less efficient)
-func SplitArgs(s string) []string {
+func splitArgs(s string) []string {
 	args := make([]string, 0)
 
 	var current strings.Builder
@@ -187,13 +192,13 @@ func searchPath(name string) string {
 	return ""
 }
 
-func executeCmd(cmdPath string, args []string) {
+func executeCmd(cmdPath string, args []string, stdin, stdout, stderr *os.File) {
 	cmd := exec.Cmd{}
 	cmd.Path = cmdPath
 	cmd.Args = args
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stdin = os.Stdin
+	cmd.Stderr = stderr
+	cmd.Stdout = stdout
+	cmd.Stdin = stdin
 	// fmt.Println(cmd)
 	err := cmd.Run()
 	if err != nil {
