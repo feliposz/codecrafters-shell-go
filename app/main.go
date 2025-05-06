@@ -17,6 +17,7 @@ func main() {
 	completer := readline.NewPrefixCompleter(
 		readline.PcItem("echo"),
 		readline.PcItem("exit"),
+		readline.PcItemDynamic(listPathCompleter, nil),
 	)
 
 	reader, err := readline.NewEx(&readline.Config{
@@ -268,6 +269,22 @@ func splitArgs(s string) []string {
 	}
 
 	return args
+}
+
+func listPathCompleter(prefix string) []string {
+	pathEnv := os.Getenv("PATH")
+	pathDirs := strings.Split(pathEnv, ":")
+	suggestions := make([]string, 0)
+	for _, dir := range pathDirs {
+		files, _ := os.ReadDir(dir)
+		for _, file := range files {
+			name := file.Name()
+			if strings.HasPrefix(name, prefix) {
+				suggestions = append(suggestions, name)
+			}
+		}
+	}
+	return suggestions
 }
 
 func searchPath(name string) string {
