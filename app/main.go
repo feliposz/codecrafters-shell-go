@@ -13,15 +13,15 @@ import (
 	"github.com/chzyer/readline"
 )
 
-var completer = readline.NewPrefixCompleter(
-	readline.PcItem("echo"),
-	readline.PcItem("exit"),
-)
-
 func main() {
+	completer := readline.NewPrefixCompleter(
+		readline.PcItem("echo"),
+		readline.PcItem("exit"),
+	)
+
 	reader, err := readline.NewEx(&readline.Config{
 		Prompt:          "$ ",
-		AutoComplete:    completer,
+		AutoComplete:    &bellOnNoMatchCompleter{completer},
 		InterruptPrompt: "^C",
 	})
 	if err != nil {
@@ -46,6 +46,10 @@ func main() {
 			panic(err)
 		}
 		input = strings.TrimSpace(input)
+
+		if len(input) == 0 {
+			continue
+		}
 
 		args := splitArgs(input)
 		firstRedirectIndex := len(args)
@@ -103,6 +107,20 @@ func main() {
 			stderrFile.Close()
 		}
 	}
+}
+
+// wrap a completer and implement bell
+type bellOnNoMatchCompleter struct {
+	inner readline.AutoCompleter
+}
+
+func (c *bellOnNoMatchCompleter) Do(line []rune, pos int) ([][]rune, int) {
+	items, offset := c.inner.Do(line, pos)
+	// inner completer returned no matches, sound a bell
+	if len(items) == 0 {
+		fmt.Fprintf(os.Stderr, "\a")
+	}
+	return items, offset
 }
 
 func handleCommand(args []string, stdin, stdout, stderr *os.File) {
