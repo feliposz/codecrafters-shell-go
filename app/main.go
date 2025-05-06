@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 func main() {
@@ -26,7 +27,7 @@ func main() {
 			panic(err)
 		}
 		input = strings.TrimRight(input, "\n")
-		cmd := strings.Fields(input)
+		cmd := SplitArgs(input)
 		switch cmd[0] {
 		case "exit":
 			var exitCode int
@@ -84,6 +85,50 @@ func main() {
 			}
 		}
 	}
+}
+
+// based on strings.FieldsFunc (but less efficient)
+func SplitArgs(s string) []string {
+	args := make([]string, 0)
+
+	start := -1
+	insideSingleQuote := false
+	hadSpaceBetweenQuotes := true
+	for end, rune := range s {
+		if insideSingleQuote {
+			if rune == '\'' {
+				if hadSpaceBetweenQuotes {
+					args = append(args, s[start:end])
+				} else {
+					// just concatenate to previous string
+					args[len(args)-1] += s[start:end]
+				}
+				start = -1
+				insideSingleQuote = false
+				hadSpaceBetweenQuotes = false
+			}
+		} else if rune == '\'' {
+			start = end + 1
+			insideSingleQuote = true
+		} else if unicode.IsSpace(rune) {
+			hadSpaceBetweenQuotes = true
+			if start >= 0 {
+				args = append(args, s[start:end])
+				start = -1
+			}
+		} else {
+			if start < 0 {
+				start = end
+			}
+		}
+	}
+
+	// Last field might end at EOF.
+	if start >= 0 {
+		args = append(args, s[start:])
+	}
+
+	return args
 }
 
 func searchPath(name string) string {
