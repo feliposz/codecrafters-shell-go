@@ -93,9 +93,22 @@ func SplitArgs(s string) []string {
 
 	start := -1
 	insideSingleQuote := false
+	insideDoubleQuote := false
 	hadSpaceBetweenQuotes := true
 	for end, rune := range s {
-		if insideSingleQuote {
+		if insideDoubleQuote {
+			if rune == '"' {
+				if hadSpaceBetweenQuotes {
+					args = append(args, s[start:end])
+				} else {
+					// just concatenate to previous string
+					args[len(args)-1] += s[start:end]
+				}
+				start = -1
+				insideDoubleQuote = false
+				hadSpaceBetweenQuotes = false
+			}
+		} else if insideSingleQuote {
 			if rune == '\'' {
 				if hadSpaceBetweenQuotes {
 					args = append(args, s[start:end])
@@ -110,6 +123,9 @@ func SplitArgs(s string) []string {
 		} else if rune == '\'' {
 			start = end + 1
 			insideSingleQuote = true
+		} else if rune == '"' {
+			start = end + 1
+			insideDoubleQuote = true
 		} else if unicode.IsSpace(rune) {
 			hadSpaceBetweenQuotes = true
 			if start >= 0 {
