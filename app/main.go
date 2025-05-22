@@ -274,8 +274,16 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 			}
 		}
 	case "history":
-		for i, entry := range history {
-			fmt.Fprintf(stdout, "%4d  %s\n", i+1, entry)
+		start := 0
+		if len(args) > 1 {
+			n, err := strconv.Atoi(args[1])
+			if err != nil {
+				fmt.Fprintf(stderr, "history: %s: numeric argument required\n", args[1])
+			}
+			start = max(len(history)-n, 0)
+		}
+		for i, entry := range history[start:] {
+			fmt.Fprintf(stdout, "%4d  %s\n", start+i+1, entry)
 		}
 	default:
 		fullPath := searchPath(args[0])
