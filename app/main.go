@@ -14,6 +14,8 @@ import (
 	"github.com/chzyer/readline"
 )
 
+var history []string
+
 func main() {
 	completer := readline.NewPrefixCompleter(
 		readline.PcItem("echo"),
@@ -52,6 +54,8 @@ func main() {
 		if len(input) == 0 {
 			continue
 		}
+
+		history = append(history, input)
 
 		args := splitTokens(input)
 		segments := splitPipeline(args)
@@ -268,6 +272,10 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 			} else {
 				fmt.Fprintf(stdout, "%s is %s\n", args[1], fullPath)
 			}
+		}
+	case "history":
+		for i, entry := range history {
+			fmt.Fprintf(stdout, "%4d  %s\n", i+1, entry)
 		}
 	default:
 		fullPath := searchPath(args[0])
