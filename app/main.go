@@ -225,7 +225,7 @@ func uniqueAndSorted(items [][]rune) [][]rune {
 
 func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
 
-	builtins := []string{"exit", "echo", "type", "pwd", "cd"}
+	builtins := []string{"exit", "echo", "type", "pwd", "cd", "history"}
 
 	switch args[0] {
 	case "exit":
