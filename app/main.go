@@ -25,6 +25,11 @@ func main() {
 		readline.PcItemDynamic(listPathCompleter, nil),
 	)
 
+	histFilePath := os.Getenv("HISTFILE")
+	if len(histFilePath) > 0 {
+		readHistory(histFilePath, os.Stderr)
+	}
+
 	reader, err := readline.NewEx(&readline.Config{
 		Prompt:          "$ ",
 		AutoComplete:    &completerWithBells{completer, 0},
@@ -277,15 +282,7 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 		}
 	case "history":
 		if len(args) > 2 && args[1] == "-r" {
-			if file, err := os.Open(args[2]); err != nil {
-				fmt.Fprintf(stderr, "history: cannot read %s\n", args[2])
-			} else {
-				scanner := bufio.NewScanner(file)
-				for scanner.Scan() {
-					history = append(history, scanner.Text())
-				}
-				file.Close()
-			}
+			readHistory(args[2], stderr)
 		} else if len(args) > 2 && args[1] == "-w" {
 			if file, err := os.OpenFile(args[2], os.O_RDWR|os.O_CREATE, 0644); err != nil {
 				fmt.Fprintf(stderr, "history: cannot write %s\n", args[2])
@@ -479,4 +476,16 @@ func executeCmd(cmdPath string, args []string, stdin io.Reader, stdout, stderr i
 	// if err != nil {
 	// 	panic(err)
 	// }
+}
+
+func readHistory(path string, stderr io.WriteCloser) {
+	if file, err := os.Open(path); err != nil {
+		fmt.Fprintf(stderr, "history: cannot read %s\n", path)
+	} else {
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			history = append(history, scanner.Text())
+		}
+		file.Close()
+	}
 }
