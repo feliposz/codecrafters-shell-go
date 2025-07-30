@@ -283,6 +283,16 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 				for scanner.Scan() {
 					history = append(history, scanner.Text())
 				}
+				file.Close()
+			}
+		} else if len(args) > 2 && args[1] == "-w" {
+			if file, err := os.OpenFile(args[2], os.O_RDWR|os.O_CREATE, 0644); err != nil {
+				fmt.Fprintf(stderr, "history: cannot write %s\n", args[2])
+			} else {
+				for _, cmd := range history {
+					fmt.Fprintln(file, cmd)
+				}
+				file.Close()
 			}
 		} else {
 			start := 0
