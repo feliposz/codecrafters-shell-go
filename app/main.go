@@ -426,7 +426,7 @@ func searchPath(name string) string {
 		dir = strings.TrimSuffix(dir, "/")
 		fullPath := fmt.Sprintf("%s/%s", dir, name)
 		info, err := os.Stat(fullPath)
-		if err == nil && !info.IsDir() {
+		if err == nil && !info.IsDir() && info.Mode().Perm()&0111 != 0 {
 			return fullPath
 		}
 	}
