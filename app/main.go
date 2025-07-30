@@ -16,6 +16,7 @@ import (
 )
 
 var history []string
+var lastAppended int
 
 func main() {
 	completer := readline.NewPrefixCompleter(
@@ -293,6 +294,16 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 					fmt.Fprintln(file, cmd)
 				}
 				file.Close()
+			}
+		} else if len(args) > 2 && args[1] == "-a" {
+			if file, err := os.OpenFile(args[2], os.O_RDWR|os.O_APPEND, 0644); err != nil {
+				fmt.Fprintf(stderr, "history: cannot append to %s\n", args[2])
+			} else {
+				for _, cmd := range history[lastAppended:] {
+					fmt.Fprintln(file, cmd)
+				}
+				file.Close()
+				lastAppended = len(history)
 			}
 		} else {
 			start := 0
