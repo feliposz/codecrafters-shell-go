@@ -16,6 +16,7 @@ import (
 )
 
 var history []string
+var histFilePath string
 var lastAppended int
 
 func main() {
@@ -25,7 +26,7 @@ func main() {
 		readline.PcItemDynamic(listPathCompleter, nil),
 	)
 
-	histFilePath := os.Getenv("HISTFILE")
+	histFilePath = os.Getenv("HISTFILE")
 	if len(histFilePath) > 0 {
 		readHistory(histFilePath, os.Stderr)
 	}
@@ -93,6 +94,10 @@ func main() {
 			}
 			wg.Wait()
 		}
+	}
+
+	if len(histFilePath) > 0 {
+		writeHistory(histFilePath, os.Stderr)
 	}
 }
 
@@ -244,6 +249,9 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 		if len(args) > 1 {
 			exitCode, _ = strconv.Atoi(args[1])
 		}
+		if len(histFilePath) > 0 {
+			writeHistory(histFilePath, stderr)
+		}
 		os.Exit(exitCode)
 	case "echo":
 		fmt.Fprintf(stdout, "%s\n", strings.Join(args[1:], " "))
@@ -284,14 +292,7 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 		if len(args) > 2 && args[1] == "-r" {
 			readHistory(args[2], stderr)
 		} else if len(args) > 2 && args[1] == "-w" {
-			if file, err := os.OpenFile(args[2], os.O_RDWR|os.O_CREATE, 0644); err != nil {
-				fmt.Fprintf(stderr, "history: cannot write %s\n", args[2])
-			} else {
-				for _, cmd := range history {
-					fmt.Fprintln(file, cmd)
-				}
-				file.Close()
-			}
+			writeHistory(args[2], stderr)
 		} else if len(args) > 2 && args[1] == "-a" {
 			if file, err := os.OpenFile(args[2], os.O_RDWR|os.O_APPEND, 0644); err != nil {
 				fmt.Fprintf(stderr, "history: cannot append to %s\n", args[2])
@@ -485,6 +486,17 @@ func readHistory(path string, stderr io.WriteCloser) {
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			history = append(history, scanner.Text())
+		}
+		file.Close()
+	}
+}
+
+func writeHistory(path string, stderr io.WriteCloser) {
+	if file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644); err != nil {
+		fmt.Fprintf(stderr, "history: cannot write %s\n", path)
+	} else {
+		for _, cmd := range history {
+			fmt.Fprintln(file, cmd)
 		}
 		file.Close()
 	}
