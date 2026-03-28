@@ -427,12 +427,12 @@ func splitTokens(s string) []string {
 }
 
 // cache the result of previous search
-var previousPathEnv = ""
+var previousPrefix = ""
 var previousSuggestions = []string{}
 
 func listPathCompleter(prefix string) []string {
 	pathEnv := os.Getenv("PATH")
-	if prefix == previousPathEnv {
+	if prefix == previousPrefix {
 		return previousSuggestions
 	}
 	pathDirs := strings.Split(pathEnv, ":")
@@ -444,7 +444,7 @@ func listPathCompleter(prefix string) []string {
 			suggestions = append(suggestions, name)
 		}
 	}
-	previousPathEnv = pathEnv
+	previousPrefix = prefix
 	previousSuggestions = suggestions
 	return suggestions
 }
