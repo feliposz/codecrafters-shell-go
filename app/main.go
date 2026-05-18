@@ -49,6 +49,7 @@ func main() {
 	reader.CaptureExitSignal()
 
 	for {
+		jobList.print(true)
 		input, err := reader.Readline()
 		if err == readline.ErrInterrupt {
 			if len(input) == 0 {
@@ -332,7 +333,7 @@ func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout
 			}
 		}
 	case "jobs":
-		jobList.print()
+		jobList.print(false)
 	default:
 		fullPath := searchPath(args[0])
 		// fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
@@ -543,7 +544,7 @@ func (jobs *JobList) add(cmd *exec.Cmd, cmdLine string) int {
 	return jobId
 }
 
-func (jobs *JobList) print() {
+func (jobs *JobList) print(onlyDone bool) {
 	slices.SortFunc(jobs.list, func(a, b *Job) int {
 		return cmp.Compare(a.jobId, b.jobId)
 	})
@@ -560,6 +561,9 @@ func (jobs *JobList) print() {
 		if job.cmd.ProcessState != nil && job.cmd.ProcessState.Exited() {
 			stateDescription = "Done"
 			job.done = true
+		}
+		if onlyDone && !job.done {
+			continue
 		}
 		fmt.Printf("[%d]%c  %-24s %s\n", job.jobId, marker, stateDescription, job.cmdLine)
 	}
