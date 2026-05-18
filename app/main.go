@@ -331,7 +331,7 @@ func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout
 			}
 		}
 	case "jobs":
-		// TODO
+		jobList.print()
 	default:
 		fullPath := searchPath(args[0])
 		// fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
@@ -489,7 +489,7 @@ func executeCmd(cmdPath string, args []string, isBackground bool, stdin io.Reade
 	cmd.Stdin = stdin
 	if isBackground {
 		cmd.Start()
-		jobId := jobList.add(&cmd)
+		jobId := jobList.add(&cmd, strings.Join(args, " "))
 		fmt.Printf("[%d] %d\n", jobId, cmd.Process.Pid)
 	} else {
 		cmd.Run()
@@ -520,8 +520,9 @@ func writeHistory(path string, stderr io.WriteCloser) {
 }
 
 type Job struct {
-	jobId int
-	cmd   *exec.Cmd
+	jobId   int
+	cmdLine string
+	cmd     *exec.Cmd
 }
 
 type JobList struct {
@@ -531,9 +532,15 @@ type JobList struct {
 
 var jobList = JobList{0, nil}
 
-func (jobs *JobList) add(cmd *exec.Cmd) int {
+func (jobs *JobList) add(cmd *exec.Cmd, cmdLine string) int {
 	jobList.jobIdSeq++
 	jobId := jobList.jobIdSeq
-	jobs.list = append(jobs.list, Job{jobId, cmd})
+	jobs.list = append(jobs.list, Job{jobId, cmdLine, cmd})
 	return jobId
+}
+
+func (jobs *JobList) print() {
+	for _, job := range jobs.list {
+		fmt.Printf("[%d]%c  %-24s %s\n", job.jobId, '+', "Running", job.cmdLine)
+	}
 }
