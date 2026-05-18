@@ -27,6 +27,7 @@ func main() {
 		readline.PcItem("pwd"),
 		readline.PcItem("cd"),
 		readline.PcItem("history"),
+		readline.PcItem("jobs"),
 		readline.PcItemDynamic(listPathCompleter, nil),
 	)
 
@@ -245,7 +246,7 @@ func uniqueAndSorted(items [][]rune) [][]rune {
 
 func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
 
-	builtins := []string{"exit", "echo", "type", "pwd", "cd", "history"}
+	builtins := []string{"exit", "echo", "type", "pwd", "cd", "history", "jobs"}
 
 	switch args[0] {
 	case "exit":
@@ -320,6 +321,8 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 				fmt.Fprintf(stdout, "%4d  %s\n", start+i+1, entry)
 			}
 		}
+	case "jobs":
+		// TODO
 	default:
 		fullPath := searchPath(args[0])
 		// fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
