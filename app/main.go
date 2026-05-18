@@ -71,6 +71,12 @@ func main() {
 		history = append(history, input)
 
 		args := splitTokens(input)
+
+		isBackground := args[len(args)-1] == "&"
+		if isBackground {
+			args = args[0 : len(args)-1]
+		}
+
 		segments := splitPipeline(args)
 
 		if len(segments) == 1 {
@@ -79,8 +85,11 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			handleCommand(args, inFile, outFile, errFile, nil)
+			handleCommand(args, isBackground, inFile, outFile, errFile, nil)
 		} else {
+			if isBackground {
+				panic("back ground jobs with pipes are not supported at the moment")
+			}
 			inFile, outFile, errFile := os.Stdin, os.Stdout, os.Stdout
 			var wg sync.WaitGroup
 			var input, previousInput io.ReadCloser
@@ -94,7 +103,7 @@ func main() {
 					output = outFile
 				}
 				// TODO: should handle redirections here
-				go handleCommand(segment, previousInput, output, errFile, &wg)
+				go handleCommand(segment, false, previousInput, output, errFile, &wg)
 				previousInput = input
 			}
 			wg.Wait()
@@ -244,7 +253,7 @@ func uniqueAndSorted(items [][]rune) [][]rune {
 	return result
 }
 
-func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
+func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
 
 	builtins := []string{"exit", "echo", "type", "pwd", "cd", "history", "jobs"}
 
@@ -331,10 +340,10 @@ func handleCommand(args []string, stdin io.ReadCloser, stdout, stderr io.WriteCl
 			if err != nil || info.IsDir() {
 				fmt.Fprintf(stderr, "%s: command not found\n", args[0])
 			} else {
-				executeCmd(args[0], args, stdin, stdout, stderr)
+				executeCmd(args[0], args, isBackground, stdin, stdout, stderr)
 			}
 		} else {
-			executeCmd(fullPath, args, stdin, stdout, stderr)
+			executeCmd(fullPath, args, isBackground, stdin, stdout, stderr)
 		}
 	}
 
@@ -471,19 +480,20 @@ func searchPath(name string) string {
 	return ""
 }
 
-func executeCmd(cmdPath string, args []string, stdin io.Reader, stdout, stderr io.Writer) {
+func executeCmd(cmdPath string, args []string, isBackground bool, stdin io.Reader, stdout, stderr io.Writer) {
 	cmd := exec.Cmd{}
 	cmd.Path = cmdPath
 	cmd.Args = args
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
 	cmd.Stdin = stdin
-	// fmt.Println(cmd)
-	cmd.Run()
-	// err := cmd.Run()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	if isBackground {
+		cmd.Start()
+		jobId := jobList.add(&cmd)
+		fmt.Printf("[%d] %d\n", jobId, cmd.Process.Pid)
+	} else {
+		cmd.Run()
+	}
 }
 
 func readHistory(path string, stderr io.WriteCloser) {
@@ -507,4 +517,23 @@ func writeHistory(path string, stderr io.WriteCloser) {
 		}
 		file.Close()
 	}
+}
+
+type Job struct {
+	jobId int
+	cmd   *exec.Cmd
+}
+
+type JobList struct {
+	jobIdSeq int
+	list     []Job
+}
+
+var jobList = JobList{0, nil}
+
+func (jobs *JobList) add(cmd *exec.Cmd) int {
+	jobList.jobIdSeq++
+	jobId := jobList.jobIdSeq
+	jobs.list = append(jobs.list, Job{jobId, cmd})
+	return jobId
 }
