@@ -257,7 +257,16 @@ func uniqueAndSorted(items [][]rune) [][]rune {
 
 func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
 
-	builtins := []string{"exit", "echo", "type", "pwd", "cd", "history", "jobs"}
+	builtins := []string{
+		"exit",
+		"echo",
+		"type",
+		"pwd",
+		"cd",
+		"history",
+		"jobs",
+		"declare",
+	}
 
 	switch args[0] {
 	case "exit":
