@@ -531,16 +531,24 @@ type Job struct {
 }
 
 type JobList struct {
-	jobIdSeq int
-	list     []*Job
+	list []*Job
 }
 
-var jobList = JobList{0, nil}
+var jobList = JobList{}
 
 func (jobs *JobList) add(cmd *exec.Cmd, cmdLine string) int {
-	jobList.jobIdSeq++
-	jobId := jobList.jobIdSeq
+	jobId := jobList.nextJobId()
 	jobs.list = append(jobs.list, &Job{jobId, cmdLine, cmd, false})
+	return jobId
+}
+
+func (jobs JobList) nextJobId() int {
+	jobId := 1
+	for _, job := range jobs.list {
+		if job.jobId == jobId {
+			jobId++
+		}
+	}
 	return jobId
 }
 
