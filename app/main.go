@@ -255,6 +255,8 @@ func uniqueAndSorted(items [][]rune) [][]rune {
 	return result
 }
 
+var shellVariables = map[string]*string{}
+
 func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
 
 	builtins := []string{
@@ -345,7 +347,24 @@ func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout
 		jobList.print(false)
 	case "declare":
 		if args[1] == "-p" {
-			fmt.Printf("declare: %s: not found\n", args[2])
+			if value, ok := shellVariables[args[2]]; ok {
+				if value != nil {
+					fmt.Printf("declare -- %s=\"%s\"\n", args[2], *value)
+				} else {
+					fmt.Printf("declare -- %s\n", args[2])
+				}
+			} else {
+				fmt.Printf("declare: %s: not found\n", args[2])
+			}
+		} else if len(args) > 1 {
+			for _, varDecl := range args[1:] {
+				parts := strings.SplitN(varDecl, "=", 2)
+				if len(parts) == 2 {
+					shellVariables[parts[0]] = &parts[1]
+				} else {
+					shellVariables[parts[0]] = nil
+				}
+			}
 		}
 	default:
 		fullPath := searchPath(args[0])
