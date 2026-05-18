@@ -30,6 +30,7 @@ func main() {
 		readline.PcItem("cd"),
 		readline.PcItem("history"),
 		readline.PcItem("jobs"),
+		readline.PcItem("declare"),
 		readline.PcItemDynamic(listPathCompleter, nil),
 	)
 
@@ -73,6 +74,7 @@ func main() {
 
 		history = append(history, input)
 
+		input = applyVariableSubstitution(input)
 		args := splitTokens(input)
 
 		isBackground := args[len(args)-1] == "&"
@@ -116,6 +118,28 @@ func main() {
 	if len(histFilePath) > 0 {
 		writeHistory(histFilePath, os.Stderr)
 	}
+}
+
+func applyVariableSubstitution(input string) string {
+	varMatcher := regexp.MustCompile(`\$[A-Za-z_][A-Za-z0-9_]*`)
+	varMatcherWithBraces := regexp.MustCompile(`\$\{[A-Za-z_][A-Za-z0-9_]*\}`)
+	vars := varMatcher.FindAllString(input, -1)
+	varsWithBraces := varMatcherWithBraces.FindAllString(input, -1)
+	vars = append(vars, varsWithBraces...)
+	for _, v := range vars {
+		var name string
+		if strings.HasPrefix(v, "${") {
+			name = v[2 : len(v)-1] // remove ${ }
+		} else {
+			name = v[1:] // remove $
+		}
+		if value, ok := shellVariables[name]; ok && value != nil {
+			input = strings.Replace(input, v, *value, 1)
+		} else {
+			input = strings.Replace(input, v, "", 1)
+		}
+	}
+	return input
 }
 
 func splitPipeline(args []string) [][]string {
