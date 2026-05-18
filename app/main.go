@@ -492,6 +492,8 @@ func executeCmd(cmdPath string, args []string, isBackground bool, stdin io.Reade
 		cmd.Start()
 		jobId := jobList.add(&cmd, strings.Join(args, " "))
 		fmt.Printf("[%d] %d\n", jobId, cmd.Process.Pid)
+		// reap the child process when it exits
+		go cmd.Wait()
 	} else {
 		cmd.Run()
 	}
@@ -524,6 +526,7 @@ type Job struct {
 	jobId   int
 	cmdLine string
 	cmd     *exec.Cmd
+	done    bool
 }
 
 type JobList struct {
@@ -536,7 +539,7 @@ var jobList = JobList{0, nil}
 func (jobs *JobList) add(cmd *exec.Cmd, cmdLine string) int {
 	jobList.jobIdSeq++
 	jobId := jobList.jobIdSeq
-	jobs.list = append(jobs.list, &Job{jobId, cmdLine, cmd})
+	jobs.list = append(jobs.list, &Job{jobId, cmdLine, cmd, false})
 	return jobId
 }
 
@@ -553,6 +556,14 @@ func (jobs *JobList) print() {
 		case numJobs - 2:
 			marker = '-'
 		}
-		fmt.Printf("[%d]%c  %-24s %s\n", job.jobId, marker, "Running", job.cmdLine)
+		stateDescription := "Running"
+		if job.cmd.ProcessState != nil && job.cmd.ProcessState.Exited() {
+			stateDescription = "Done"
+			job.done = true
+		}
+		fmt.Printf("[%d]%c  %-24s %s\n", job.jobId, marker, stateDescription, job.cmdLine)
 	}
+	jobs.list = slices.DeleteFunc(jobs.list, func(job *Job) bool {
+		return job.done
+	})
 }
