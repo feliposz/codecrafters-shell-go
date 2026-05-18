@@ -343,6 +343,10 @@ func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout
 		}
 	case "jobs":
 		jobList.print(false)
+	case "declare":
+		if args[1] == "-p" {
+			fmt.Printf("declare: %s: not found\n", args[2])
+		}
 	default:
 		fullPath := searchPath(args[0])
 		// fmt.Fprintf(os.Stderr, "fullPath = %s\n", fullPath)
