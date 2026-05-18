@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -256,6 +257,11 @@ func uniqueAndSorted(items [][]rune) [][]rune {
 }
 
 var shellVariables = map[string]*string{}
+var shellVariableValidator = regexp.MustCompile("^[A-Za-z_][A-Za-z0-9_]*$")
+
+func isValidVarName(name string) bool {
+	return shellVariableValidator.MatchString(name)
+}
 
 func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout, stderr io.WriteCloser, wg *sync.WaitGroup) {
 
@@ -359,11 +365,16 @@ func handleCommand(args []string, isBackground bool, stdin io.ReadCloser, stdout
 		} else if len(args) > 1 {
 			for _, varDecl := range args[1:] {
 				parts := strings.SplitN(varDecl, "=", 2)
-				if len(parts) == 2 {
-					shellVariables[parts[0]] = &parts[1]
+				if isValidVarName(parts[0]) {
+					if len(parts) == 2 {
+						shellVariables[parts[0]] = &parts[1]
+					} else {
+						shellVariables[parts[0]] = nil
+					}
 				} else {
-					shellVariables[parts[0]] = nil
+					fmt.Printf("declare: `%s': not a valid identifier\n", varDecl)
 				}
+
 			}
 		}
 	default:
