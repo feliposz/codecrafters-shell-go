@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"fmt"
 	"io"
 	"os"
@@ -527,7 +528,7 @@ type Job struct {
 
 type JobList struct {
 	jobIdSeq int
-	list     []Job
+	list     []*Job
 }
 
 var jobList = JobList{0, nil}
@@ -535,12 +536,23 @@ var jobList = JobList{0, nil}
 func (jobs *JobList) add(cmd *exec.Cmd, cmdLine string) int {
 	jobList.jobIdSeq++
 	jobId := jobList.jobIdSeq
-	jobs.list = append(jobs.list, Job{jobId, cmdLine, cmd})
+	jobs.list = append(jobs.list, &Job{jobId, cmdLine, cmd})
 	return jobId
 }
 
 func (jobs *JobList) print() {
-	for _, job := range jobs.list {
-		fmt.Printf("[%d]%c  %-24s %s\n", job.jobId, '+', "Running", job.cmdLine)
+	slices.SortFunc(jobs.list, func(a, b *Job) int {
+		return cmp.Compare(a.jobId, b.jobId)
+	})
+	numJobs := len(jobs.list)
+	for i, job := range jobs.list {
+		marker := ' '
+		switch i {
+		case numJobs - 1:
+			marker = '+'
+		case numJobs - 2:
+			marker = '-'
+		}
+		fmt.Printf("[%d]%c  %-24s %s\n", job.jobId, marker, "Running", job.cmdLine)
 	}
 }
